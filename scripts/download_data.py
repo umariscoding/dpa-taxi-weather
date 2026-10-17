@@ -7,7 +7,6 @@ Download the raw data for the project into data/raw/.
 
 Usage:
   python scripts/download_data.py
-  python scripts/download_data.py --start 2024-01 --end 2024-06
 
 Only the standard library is used. Files that already exist are skipped,
 so it is safe to run again if a download fails.
