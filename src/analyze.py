@@ -77,3 +77,16 @@ def by_zone(bucket_col):
 
 rain = by_zone("rain_bucket")
 rain.orderBy(F.desc("trips_per_day")).show(6, truncate=False)
+
+#####################
+
+def compare(bucket_col, baseline, other):
+    stats = by_zone(bucket_col)
+    wide = stats.groupBy("Borough", "Zone").pivot("bucket", [baseline, other]).agg(F.first("trips_per_day"))
+    return wide.withColumn("pct_change", F.round((F.col(other) / F.col(baseline) - 1) * 100, 1))
+
+
+rain_change = compare("rain_bucket", "dry", "rain")
+rain_change.where("dry >= 100").orderBy("pct_change").show(5, truncate=False)
+rain_change.where("dry >= 100").orderBy(F.desc("pct_change")).show(5, truncate=False)
+
