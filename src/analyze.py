@@ -50,3 +50,30 @@ daily = spark.sql(f"""
 """)
 print("daily rows:", daily.count())
 daily.show(5)
+
+#####################
+
+days.where(f"date BETWEEN '{FIRST_DAY}' AND '{LAST_DAY}'").createOrReplaceTempView("days")
+daily.createOrReplaceTempView("daily")
+spark.read.parquet("data/parquet/zones").createOrReplaceTempView("zones")
+
+
+def by_zone(bucket_col):
+    # trips per day = all trips of the bucket / number of days in the bucket
+    # (we need per day because there are more dry days than snow days)
+    return spark.sql(f"""
+        SELECT z.Borough, z.Zone, d.{bucket_col} AS bucket,
+               SUM(t.trips) / n.n_days AS trips_per_day,
+               SUM(t.sum_duration) / SUM(t.trips) AS avg_duration_min,
+               SUM(t.sum_fare) / SUM(t.trips) AS avg_fare
+        FROM daily t
+        JOIN days d ON t.pickup_date = d.date
+        JOIN (SELECT {bucket_col} AS bucket, COUNT(*) AS n_days FROM days GROUP BY {bucket_col}) n
+          ON n.bucket = d.{bucket_col}
+        JOIN zones z ON z.LocationID = t.zone_id
+        GROUP BY z.Borough, z.Zone, d.{bucket_col}, n.n_days
+    """)
+
+
+rain = by_zone("rain_bucket")
+rain.orderBy(F.desc("trips_per_day")).show(6, truncate=False)
