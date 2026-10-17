@@ -90,3 +90,14 @@ rain_change = compare("rain_bucket", "dry", "rain")
 rain_change.where("dry >= 100").orderBy("pct_change").show(5, truncate=False)
 rain_change.where("dry >= 100").orderBy(F.desc("pct_change")).show(5, truncate=False)
 
+# same for snow and temperature
+snow_change = compare("snow_bucket", "no_snow", "snow")
+cold_change = compare("temp_bucket", "mild", "cold")
+hot_change = compare("temp_bucket", "mild", "hot")
+
+for name, change, baseline in [("snow", snow_change, "no_snow"), ("cold", cold_change, "mild"), ("hot", hot_change, "mild")]:
+    print(name, "vs", baseline, "- biggest drops")
+    change.where(f"{baseline} >= 100").orderBy("pct_change").show(5, truncate=False)
+    print(name, "vs", baseline, "- biggest rises")
+    change.where(f"{baseline} >= 100").orderBy(F.desc("pct_change")).show(5, truncate=False)
+
