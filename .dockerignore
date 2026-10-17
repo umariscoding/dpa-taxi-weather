@@ -1,0 +1,5 @@
+data
+outputs
+.git
+__pycache__
+.DS_Store
