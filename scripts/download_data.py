@@ -59,7 +59,7 @@ def download(url, path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start", default="2024-01", help="first month (YYYY-MM)")
+    parser.add_argument("--start", default="2023-07", help="first month (YYYY-MM)")
     parser.add_argument("--end", default="2025-12", help="last month (YYYY-MM)")
     parser.add_argument("--out", default=DEFAULT_OUT, help="output folder")
     args = parser.parse_args()
