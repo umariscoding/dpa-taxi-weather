@@ -30,3 +30,23 @@ days = (
 days.groupBy("rain_bucket").count().show()
 days.groupBy("snow_bucket").count().show()
 days.groupBy("temp_bucket").count().show()
+
+################################
+
+trips = spark.read.parquet("data/raw/trips/yellow_tripdata_2024-01.parquet").select(
+    F.to_date("tpep_pickup_datetime").alias("pickup_date"),
+    F.col("PULocationID"),
+    ((F.unix_timestamp("tpep_dropoff_datetime") - F.unix_timestamp("tpep_pickup_datetime")) / 60).alias("duration_min"),
+    F.col("fare_amount"),
+)
+trips.createOrReplaceTempView("trips")
+
+daily = spark.sql(f"""
+    SELECT PULocationID AS zone_id, pickup_date,
+           COUNT(*) AS trips, SUM(duration_min) AS sum_duration, SUM(fare_amount) AS sum_fare
+    FROM trips
+    WHERE pickup_date BETWEEN '{FIRST_DAY}' AND '{LAST_DAY}'
+    GROUP BY PULocationID, pickup_date
+""")
+print("daily rows:", daily.count())
+daily.show(5)
