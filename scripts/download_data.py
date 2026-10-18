@@ -14,6 +14,7 @@ so it is safe to run again if a download fails.
 
 import argparse
 import os
+import time
 import urllib.request
 
 TRIP_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{month}.parquet"
@@ -22,6 +23,9 @@ WEATHER_URL = "https://www.ncei.noaa.gov/data/global-historical-climatology-netw
 
 # data/raw next to this script's parent folder, so it works from any directory
 DEFAULT_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "raw")
+
+RETRIES = 4  # how many times we try again when a download fails
+WAIT_SECONDS = 5  # wait before each retry
 
 
 def list_months(start, end):
@@ -39,21 +43,26 @@ def list_months(start, end):
 
 
 def download(url, path):
-    """Download url to path, unless the file is already there."""
+    """Download url to path, unless the file is already there. Retries when it fails."""
     name = os.path.basename(path)
     if os.path.exists(path):
         print(f"skip {name} (already downloaded)")
         return True
     print(f"downloading {name} ...")
-    try:
-        urllib.request.urlretrieve(url, path + ".part")
-        os.rename(path + ".part", path)  # only rename when the download finished
-        return True
-    except Exception as error:
-        print(f"  FAILED {name}: {error}")
-        if os.path.exists(path + ".part"):
-            os.remove(path + ".part")
-        return False
+    for attempt in range(RETRIES + 1):
+        if attempt > 0:
+            print(f"  retry {attempt}/{RETRIES} for {name} in {WAIT_SECONDS} seconds ...")
+            time.sleep(WAIT_SECONDS)
+        try:
+            urllib.request.urlretrieve(url, path + ".part")
+            os.rename(path + ".part", path)  # only rename when the download finished
+            return True
+        except Exception as error:
+            print(f"  failed {name}: {error}")
+            if os.path.exists(path + ".part"):
+                os.remove(path + ".part")
+    print(f"  giving up on {name}")
+    return False
 
 
 def main():
