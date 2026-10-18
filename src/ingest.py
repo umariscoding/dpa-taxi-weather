@@ -1,8 +1,13 @@
 """
 Ingest: raw files -> typed parquet tables in data/parquet/
 
+Reads data/raw/ with the fixed schemas from schema.py and writes three tables:
+  zones    the taxi zone lookup
+  weather  daily weather for our 915 days (values still in noaa units)
+  trips    all 30 months of taxi trips
+
 Run from the project folder inside docker:
-  docker compose run --rm spark python src/ingest.py
+  docker compose run --rm notebook python src/ingest.py
 """
 
 import os
@@ -29,7 +34,10 @@ spark.sparkContext.setLogLevel("ERROR")
 
 def ingest_trips():
     # one month at a time so the laptop memory is ok
-    files = sorted(os.listdir(f"{RAW}/trips"))
+    # only the parquet files, so a .DS_Store or a half downloaded .part file cannot break it
+    files = sorted(f for f in os.listdir(f"{RAW}/trips") if f.endswith(".parquet"))
+    if not files:
+        raise SystemExit("no trip files in data/raw/trips, run src/download_data.py first")
     for i, name in enumerate(files):
         df = spark.read.schema(TRIPS_SCHEMA).parquet(f"{RAW}/trips/{name}")
         # first month starts the table (overwrite so rerun is fine), others get added
