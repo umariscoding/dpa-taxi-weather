@@ -1,44 +1,35 @@
+import os
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 spark = SparkSession.builder.master("local[*]").getOrCreate()
 spark.sparkContext.setLogLevel("ERROR")
 
-# while building we use one month only (jan 2024)
-FIRST_DAY = "2024-01-01"
-LAST_DAY = "2024-01-31"
+# full data (jul 2023 to dec 2025)
+FIRST_DAY = "2023-07-01"
+LAST_DAY = "2025-12-31"
 
-weather = spark.read.parquet("data/parquet/weather")
+weather = spark.read.parquet("data/parquet/weather_clean")
 weather.describe().show()
-print("rainy days:", weather.where("prcp >= 10").count())
-print("snow days:", weather.where("snow > 0").count())
-
-###############################
+print("rainy days:", weather.where("prcp_mm >= 1").count())
+print("snow days:", weather.where("snow_mm > 0").count())
 
 days = (
-    weather.select(
-        "date",
-        (F.col("prcp") / 10).alias("prcp_mm"),
-        F.col("snow").alias("snow_mm"),
-        (F.col("tmax") / 10).alias("tmax_c"),
-        (F.col("tmin") / 10).alias("tmin_c"),
-    )
+    weather
     .withColumn("rain_bucket", F.when(F.col("prcp_mm") >= 1, "rain").otherwise("dry"))
     .withColumn("snow_bucket", F.when(F.col("snow_mm") > 0, "snow").otherwise("no_snow"))
     .withColumn("temp_bucket", F.when(F.col("tmax_c") < 5, "cold").when(F.col("tmax_c") >= 25, "hot").otherwise("mild"))
 )
+
 days.groupBy("rain_bucket").count().show()
 days.groupBy("snow_bucket").count().show()
 days.groupBy("temp_bucket").count().show()
 
 ################################
 
-trips = spark.read.parquet("data/raw/trips/yellow_tripdata_2024-01.parquet").select(
-    F.to_date("tpep_pickup_datetime").alias("pickup_date"),
-    F.col("PULocationID"),
-    ((F.unix_timestamp("tpep_dropoff_datetime") - F.unix_timestamp("tpep_pickup_datetime")) / 60).alias("duration_min"),
-    F.col("fare_amount"),
-)
+trips = spark.read.parquet("data/parquet/trips_clean")
+
+
 trips.createOrReplaceTempView("trips")
 
 daily = spark.sql(f"""
@@ -47,7 +38,7 @@ daily = spark.sql(f"""
     FROM trips
     WHERE pickup_date BETWEEN '{FIRST_DAY}' AND '{LAST_DAY}'
     GROUP BY PULocationID, pickup_date
-""")
+""").cache()
 print("daily rows:", daily.count())
 daily.show(5)
 
@@ -79,25 +70,43 @@ rain = by_zone("rain_bucket")
 rain.orderBy(F.desc("trips_per_day")).show(6, truncate=False)
 
 #####################
-
 def compare(bucket_col, baseline, other):
     stats = by_zone(bucket_col)
-    wide = stats.groupBy("Borough", "Zone").pivot("bucket", [baseline, other]).agg(F.first("trips_per_day"))
-    return wide.withColumn("pct_change", F.round((F.col(other) / F.col(baseline) - 1) * 100, 1))
+    wide = stats.groupBy("Borough", "Zone").pivot("bucket", [baseline, other]).agg(
+        F.first("trips_per_day").alias("trips"),
+        F.first("avg_duration_min").alias("duration"),
+        F.first("avg_fare").alias("fare"),
+    )
+
+    def pct(metric):
+        return F.round((F.col(f"{other}_{metric}") / F.col(f"{baseline}_{metric}") - 1) * 100, 1)
+
+    # skip tiny zones (under 100 trips per day in the baseline) because they give silly percentages
+    return (
+        wide.where(F.col(f"{baseline}_trips") >= 100)
+        .select(
+            "Borough",
+            "Zone",
+            F.round(F.col(f"{baseline}_trips"), 1).alias("trips_per_day_base"),
+            pct("trips").alias("trips_pct"),
+            pct("duration").alias("duration_pct"),
+            pct("fare").alias("fare_pct"),
+        )
+    )
 
 
-rain_change = compare("rain_bucket", "dry", "rain")
-rain_change.where("dry >= 100").orderBy("pct_change").show(5, truncate=False)
-rain_change.where("dry >= 100").orderBy(F.desc("pct_change")).show(5, truncate=False)
+factors = [
+    ("rain", "rain_bucket", "dry", "rain"),
+    ("snow", "snow_bucket", "no_snow", "snow"),
+    ("cold", "temp_bucket", "mild", "cold"),
+    ("hot", "temp_bucket", "mild", "hot"),
+]
 
-# same for snow and temperature
-snow_change = compare("snow_bucket", "no_snow", "snow")
-cold_change = compare("temp_bucket", "mild", "cold")
-hot_change = compare("temp_bucket", "mild", "hot")
-
-for name, change, baseline in [("snow", snow_change, "no_snow"), ("cold", cold_change, "mild"), ("hot", hot_change, "mild")]:
-    print(name, "vs", baseline, "- biggest drops")
-    change.where(f"{baseline} >= 100").orderBy("pct_change").show(5, truncate=False)
-    print(name, "vs", baseline, "- biggest rises")
-    change.where(f"{baseline} >= 100").orderBy(F.desc("pct_change")).show(5, truncate=False)
-
+os.makedirs("outputs", exist_ok=True)
+for name, bucket_col, baseline, other in factors:
+    result = compare(bucket_col, baseline, other)
+    print(name, "vs", baseline, "- biggest drops in trips per day")
+    result.orderBy("trips_pct").show(5, truncate=False)
+    print(name, "vs", baseline, "- biggest rises in trips per day")
+    result.orderBy(F.desc("trips_pct")).show(5, truncate=False)
+    result.toPandas().to_csv(f"outputs/{name}_change.csv", index=False)
