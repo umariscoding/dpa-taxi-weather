@@ -52,7 +52,7 @@ Run all commands from the project folder. Order matters, each step needs the one
 python3 src/download_data.py
 ```
 
-On Windows use `python` instead of `python3`. It makes `data/raw/` with 30 trip files, the zone csv and the weather csv. A failed file is tried again 4 times. If it still fails just run the command again, files that are already there are skipped. You will see `All files downloaded.` at the end.
+On Windows use `python` instead of `python3`. It makes `data/raw/` with 30 trip files, the zone csv and the weather csv. A failed file is tried again 4 times. If it still fails just run the command again, files that are already there are skipped. It shows the progress like `3/32` for every file. You will see `All files downloaded.` at the end.
 
 **2. Build the docker image** (once, the image is about 2 GB to download, it can take long if your internet is slow)
 

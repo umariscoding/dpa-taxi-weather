@@ -1,8 +1,8 @@
 """
-Schemas for the raw files (trips, zones, weather)
+Schemas for the raw files (trips, zones, weather), used by ingest.py
 
-2025 trip files have one extra column, cbd_congestion_fee. Its in the schema
-for all months, 2023 and 2024 just get null there
+2025 trip files have one extra column, cbd_congestion_fee. It is in the schema
+for all months, 2023 and 2024 just get null there.
 """
 
 from pyspark.sql.types import (
