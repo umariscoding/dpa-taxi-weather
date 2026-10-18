@@ -6,3 +6,4 @@ __pycache__/
 spark-warehouse/
 .DS_Store
 .vscode/
+.ipynb_checkpoints/

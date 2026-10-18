@@ -6,7 +6,7 @@ Download the raw data for the project into data/raw/.
   3. NOAA daily weather for Central Park (CSV)
 
 Usage:
-  python scripts/download_data.py
+  python src/download_data.py
 
 Only the standard library is used. Files that already exist are skipped,
 so it is safe to run again if a download fails.

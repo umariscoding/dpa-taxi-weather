@@ -1,0 +1,23 @@
+services:
+    notebook:
+        # build the container image specified in the Dockerfile
+        build:
+            context: .
+
+        # don't require any access token or password for accessing the notebook's webinterface
+        command: start-notebook.py --NotebookApp.token='' --NotebookApp.password='' --no-browser
+
+        # the project folder is shared with the container, so data/ and outputs/ stay on your computer
+        volumes:
+            - .:/home/jovyan/work
+        working_dir: /home/jovyan/work
+
+        environment:
+            # memory for the spark driver (everything runs in local mode on one machine)
+            PYSPARK_SUBMIT_ARGS: "--driver-memory 4g pyspark-shell"
+            # so that "python src/ingest.py" finds pyspark (notebooks find it anyway)
+            PYTHONPATH: "/usr/local/spark/python:/usr/local/spark/python/lib/py4j-0.10.9.7-src.zip"
+
+        # avoid a port clash with a native installation
+        ports:
+            - 8889:8888
