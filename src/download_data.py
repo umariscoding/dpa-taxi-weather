@@ -24,8 +24,8 @@ WEATHER_URL = "https://www.ncei.noaa.gov/data/global-historical-climatology-netw
 # data/raw next to this script's parent folder, so it works from any directory
 DEFAULT_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "raw")
 
-RETRIES = 4  # how many times we try again when a download fails
-WAIT_SECONDS = 5  # wait before each retry
+RETRIES = 5  # how many times we try again when a download fails
+WAIT_SECONDS = 3  # wait before each retry
 
 
 def list_months(start, end):
