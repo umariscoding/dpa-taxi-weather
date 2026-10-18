@@ -4,18 +4,34 @@ import os
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-spark = SparkSession.builder.master("local[*]").appName("clean").getOrCreate()
+spark = (
+    SparkSession.builder.master("local[*]").appName("clean")
+    .config("spark.ui.showConsoleProgress", "false")  # no progress bars in the output
+    .getOrCreate()
+)
 spark.sparkContext.setLogLevel("ERROR")
 
 OUT = "data/parquet"
 os.makedirs("outputs", exist_ok=True)
 
+
+def save_counts(counts, path):
+    # row counts for the report: rows left and rows removed after every step
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["step", "rows_after", "rows_removed"])
+        for i, (step, rows) in enumerate(counts):
+            removed = 0 if i == 0 else counts[i - 1][1] - rows
+            writer.writerow([step, rows, removed])
+            print(f"  {step}: {rows} left, {removed} removed")
+
+
 # ---------- weather ----------
+print("1/2 weather")
 weather = spark.read.parquet(f"{OUT}/weather")
 counts = [("weather start", weather.count())]
 
-# missing values: count them per column, then drop those rows
-weather.select([F.sum(F.col(c).isNull().cast("int")).alias(c) for c in weather.columns]).show()
+# missing values: drop those rows
 weather = weather.dropna()
 counts.append(("drop rows with missing values", weather.count()))
 
@@ -34,21 +50,14 @@ weather = weather.select(
 
 # impossible values
 bad = "prcp_mm < 0 OR snow_mm < 0 OR tmax_c > 50 OR tmin_c < -40 OR tmin_c > tmax_c"
-print("impossible rows:", weather.where(bad).count())
 weather = weather.where(f"NOT ({bad})")
 counts.append(("drop impossible values", weather.count()))
 
 weather.write.mode("overwrite").parquet(f"{OUT}/weather_clean")
-
-# row counts for the report
-with open("outputs/cleaning_counts_weather.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow(["step", "rows_after"])
-    writer.writerows(counts)
-for step, rows in counts:
-    print(step, rows)
+save_counts(counts, "outputs/cleaning_counts_weather.csv")
 
 # ---------- trips ----------
+print("2/2 trips")
 trips = spark.read.parquet(f"{OUT}/trips")
 trips = trips.withColumn(
     "duration_min",
@@ -100,11 +109,5 @@ trips = trips.select(
 trips.write.mode("overwrite").parquet(f"{OUT}/trips_clean")
 trip_counts.append(("drop duplicate rows", spark.read.parquet(f"{OUT}/trips_clean").count()))
 
-# row counts for the report
-with open("outputs/cleaning_counts_trips.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow(["step", "rows_after", "rows_removed"])
-    for i, (step, rows) in enumerate(trip_counts):
-        removed = 0 if i == 0 else trip_counts[i - 1][1] - rows
-        writer.writerow([step, rows, removed])
-        print(f"{step}: {rows} left, {removed} removed")
+save_counts(trip_counts, "outputs/cleaning_counts_trips.csv")
+print("clean finished")

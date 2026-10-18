@@ -106,7 +106,7 @@ We ran this whole list from an empty folder (no data, no outputs) and everything
 
 We start with 108,708,928 trips and keep 101,088,746 (about 93%). The table is also in `outputs/cleaning_counts_trips.csv`.
 
-Some choices: most negative fares are refunds and disputes so they are not real trips. About 13 million cleaned trips have no passenger count (flex fare trips), we keep them because we never use that column. We keep drop offs to zone 265 (outside NYC) because those trips are real.
+Some choices: negative fares are credits, voids and adjustments (flex fare, dispute, cash, no charge) so they are not normal paid trips. About 13 million cleaned trips have no passenger count (flex fare trips), we keep them because we never use that column. We keep drop offs to zone 265 (outside NYC) because those trips are real.
 
 **Analyze** (`src/analyze.py`). We label every day: rain (1 mm or more) or dry, snow (any snow) or no snow, cold (max temperature under 5 C), hot (25 C or more) or mild. Then for every pick up zone we count trips per day, average trip time and average fare for each type of day. We use trips per day (not total trips) because there are way more dry days than snow days. Then we compare to the normal day (dry, no snow, mild) in percent. Zones with less than 100 trips per day on normal days are left out, they give silly percentages. 66 busy zones are left.
 

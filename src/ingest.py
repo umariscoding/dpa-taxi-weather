@@ -19,7 +19,11 @@ OUT = "data/parquet"
 FIRST_DAY = "2023-07-01"
 LAST_DAY = "2025-12-31"
 
-spark = SparkSession.builder.master("local[*]").appName("ingest").getOrCreate()
+spark = (
+    SparkSession.builder.master("local[*]").appName("ingest")
+    .config("spark.ui.showConsoleProgress", "false")  # no progress bars in the output
+    .getOrCreate()
+)
 spark.sparkContext.setLogLevel("ERROR")
 
 
@@ -31,7 +35,7 @@ def ingest_trips():
         # first month starts the table (overwrite so rerun is fine), others get added
         mode = "overwrite" if i == 0 else "append"
         df.write.mode(mode).parquet(f"{OUT}/trips")
-        print(f"trips: {name} done ({i + 1}/{len(files)})")
+        print(f"trips {i + 1}/{len(files)}")
     print("trips rows:", spark.read.parquet(f"{OUT}/trips").count())
 
 

@@ -2,17 +2,19 @@ import os
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-spark = SparkSession.builder.master("local[*]").getOrCreate()
+spark = (
+    SparkSession.builder.master("local[*]")
+    .config("spark.ui.showConsoleProgress", "false")  # no progress bars in the output
+    .getOrCreate()
+)
 spark.sparkContext.setLogLevel("ERROR")
 
 # full data (jul 2023 to dec 2025)
 FIRST_DAY = "2023-07-01"
 LAST_DAY = "2025-12-31"
 
+print("1/3 weather days")
 weather = spark.read.parquet("data/parquet/weather_clean")
-weather.describe().show()
-print("rainy days:", weather.where("prcp_mm >= 1").count())
-print("snow days:", weather.where("snow_mm > 0").count())
 
 days = (
     weather
@@ -21,15 +23,14 @@ days = (
     .withColumn("temp_bucket", F.when(F.col("tmax_c") < 5, "cold").when(F.col("tmax_c") >= 25, "hot").otherwise("mild"))
 )
 
-days.groupBy("rain_bucket").count().show()
-days.groupBy("snow_bucket").count().show()
-days.groupBy("temp_bucket").count().show()
+for bucket_col in ["rain_bucket", "snow_bucket", "temp_bucket"]:
+    counts = sorted((row[bucket_col], row["count"]) for row in days.groupBy(bucket_col).count().collect())
+    print(f"  {bucket_col}: " + ", ".join(f"{name} {n}" for name, n in counts))
 
 ################################
 
+print("2/3 trips per zone per day")
 trips = spark.read.parquet("data/parquet/trips_clean")
-
-
 trips.createOrReplaceTempView("trips")
 
 daily = spark.sql(f"""
@@ -39,8 +40,7 @@ daily = spark.sql(f"""
     WHERE pickup_date BETWEEN '{FIRST_DAY}' AND '{LAST_DAY}'
     GROUP BY PULocationID, pickup_date
 """).cache()
-print("daily rows:", daily.count())
-daily.show(5)
+print("  daily rows:", daily.count())
 
 #####################
 
@@ -65,9 +65,6 @@ def by_zone(bucket_col):
         GROUP BY z.Borough, z.Zone, d.{bucket_col}, n.n_days
     """)
 
-
-rain = by_zone("rain_bucket")
-rain.orderBy(F.desc("trips_per_day")).show(6, truncate=False)
 
 #####################
 def compare(bucket_col, baseline, other):
@@ -102,11 +99,14 @@ factors = [
     ("hot", "temp_bucket", "mild", "hot"),
 ]
 
+print("3/3 compare with a normal day")
 os.makedirs("outputs", exist_ok=True)
-for name, bucket_col, baseline, other in factors:
-    result = compare(bucket_col, baseline, other)
-    print(name, "vs", baseline, "- biggest drops in trips per day")
-    result.orderBy("trips_pct").show(5, truncate=False)
-    print(name, "vs", baseline, "- biggest rises in trips per day")
-    result.orderBy(F.desc("trips_pct")).show(5, truncate=False)
-    result.toPandas().to_csv(f"outputs/{name}_change.csv", index=False)
+for i, (name, bucket_col, baseline, other) in enumerate(factors, 1):
+    table = compare(bucket_col, baseline, other).toPandas()
+    table.to_csv(f"outputs/{name}_change.csv", index=False)
+    print(f"  {i}/{len(factors)} {name} vs {baseline}: {len(table)} zones, saved outputs/{name}_change.csv")
+    # the 3 biggest drops and rises in trips per day
+    for label, rows in [("drop", table.nsmallest(3, "trips_pct")), ("rise", table.nlargest(3, "trips_pct"))]:
+        for _, row in rows.iterrows():
+            print(f"      {label}: {row.Zone} trips {row.trips_pct}%, time {row.duration_pct}%, fare {row.fare_pct}%")
+print("analyze finished")

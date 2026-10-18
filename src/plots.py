@@ -9,7 +9,11 @@ labels = {
     "fare_pct": "change in average fare (%)",
 }
 
-for factor in ["rain", "snow", "cold", "hot"]:
+factors = ["rain", "snow", "cold", "hot"]
+total = len(factors) * len(labels)
+done = 0
+
+for factor in factors:
     data = pd.read_csv(f"outputs/{factor}_change.csv")
     for column, label in labels.items():
         df = data.dropna(subset=[column]).sort_values(column)
@@ -22,3 +26,6 @@ for factor in ["rain", "snow", "cold", "hot"]:
         plt.tight_layout()
         plt.savefig(f"outputs/{factor}_{column}.png")
         plt.close()
+        done += 1
+        print(f"{done}/{total} outputs/{factor}_{column}.png")
+print("plots finished")
