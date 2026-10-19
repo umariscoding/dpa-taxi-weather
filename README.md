@@ -81,7 +81,7 @@ ingest finished
 docker compose up
 ```
 
-Then open http://localhost:8889 in your browser (no password, like in the lab). Stop it later with Ctrl+C in the terminal.
+Then open http://localhost:8889/lab/tree/notebooks/ in your browser (no password, like in the lab). Stop it later with Ctrl+C in the terminal.
 
 **5. Notebook 1: cleaning** (about 3 minutes)
 
