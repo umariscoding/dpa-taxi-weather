@@ -86,8 +86,6 @@ What it creates: `data/parquet/trips_clean`, `data/parquet/weather_clean` and th
 
 What it creates: four csv files in `outputs/results/` and 12 pictures in `outputs/charts/`.
 
-*Run All Cells* runs the cells one after the other, from top to bottom, and stops if a cell fails. If you want to look at every step, click a cell and press Shift+Enter instead, this runs just that cell and moves to the next one.
-
 We ran all the steps from a clean state (no parquet files, no outputs) and everything worked. Times are from our laptops.
 
 ## How it works (in short)
