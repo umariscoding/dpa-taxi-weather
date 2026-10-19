@@ -1,6 +1,10 @@
 # Weather and taxi demand in New York City (Part 1, Spark SQL)
 
-DISS-DPA Fall 2026. Group: Muhammad Umar Azhar and Wadan Ali.
+DISS-DPA Fall 2026.
+
+Group:
+- Muhammad Umar Azhar (muhammad-umar.azhar@etu.univ-lyon1.fr)
+- Wadan Ali (wadan.ali@etu.univ-lyon1.fr)
 
 This is part 1 (Volume) of our project. We use Spark SQL on about 100 million taxi trips and daily weather data.
 
@@ -9,31 +13,6 @@ This is part 1 (Volume) of our project. We use Spark SQL on about 100 million ta
 **Part 1 question:** how do rain, snow and temperature change trips, trip time and fares per zone?
 
 Part 2 (streaming) and part 3 (graph) will use the same data later.
-
-## How it works (in short)
-
-Four steps, one after the other. Steps 1 and 2 are python scripts, steps 3 and 4 are jupyter notebooks. The download runs on your computer, the other steps run in docker.
-
-| Step | What it does | Where the result goes |
-|---|---|---|
-| 1. `src/download_data.py` | downloads the data | `data/raw/` |
-| 2. `src/ingest.py` | reads the raw files with a fixed schema and saves them as parquet (a faster format) | `data/parquet/` |
-| 3. `notebooks/01_clean.ipynb` | removes the bad rows | clean tables in `data/parquet/`, row counts in `outputs/cleaning/` |
-| 4. `notebooks/02_analysis.ipynb` | compares every weather type with a normal day and draws charts | tables in `outputs/results/`, charts in `outputs/charts/` |
-
-The two notebooks in this repository already contain the results of our run (tables, row counts and charts), so you can read them here on github without running anything.
-
-## Data
-
-| Dataset | What it is | Size | Licence |
-|---|---|---|---|
-| [NYC yellow taxi trips](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) | one parquet file per month, July 2023 to December 2025 (30 files, about 108.7 million trips) | 1.86 GB for all raw files | NYC Open Data terms of use |
-| [Taxi zone lookup](https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv) | 265 zones with borough and name | 12 KB | NYC Open Data terms of use |
-| [NOAA daily weather, Central Park](https://www.ncei.noaa.gov/data/global-historical-climatology-network-daily/access/USW00094728.csv) | station USW00094728, we use 915 days (2023-07-01 to 2025-12-31) | 17.8 MB | NOAA public data |
-
-Joins: trips and zones on the zone id, trips and weather on the pick up date.
-
-Why Spark: 108 million rows are too much for pandas on a laptop (the data is more than 1.8 GB and expands a lot in memory). Spark reads it in parts and does the joins and group bys for us.
 
 ## What you need
 
@@ -83,17 +62,58 @@ ingest finished
 docker compose up
 ```
 
-Then open http://localhost:8889/lab/tree/notebooks/ in your browser (no password, like in the lab). Stop it later with Ctrl+C in the terminal.
+1. Leave this terminal open, jupyter runs in it.
+2. Open http://localhost:8889/lab/tree/notebooks/ in your browser (no password, like in the lab). You see the two notebooks of the next steps.
+3. When you are completely done, stop jupyter with Ctrl+C in the terminal.
 
 **5. Notebook 1: cleaning** (about 3 minutes)
 
-Open `notebooks/01_clean.ipynb` and choose *Run > Run All Cells*. You can also run the cells one by one. Every cell shows what it did. A cell with `[*]` is still working, wait until the status at the bottom left says `Idle`. It writes `data/parquet/trips_clean` and `data/parquet/weather_clean`, and two files with row counts in `outputs/cleaning/`. The last output is a table of all cleaning steps, ending with `drop duplicate rows` and 101088746 rows left.
+1. In the browser, double click `01_clean.ipynb` to open it.
+2. In the top menu choose *Run > Run All Cells*.
+3. Wait until it is finished. A cell with `[*]` next to it is still working, and the status at the bottom left says `Busy`. When everything is done it says `Idle`. Every cell prints what it did right under it.
+4. Check the last output, a table of all cleaning steps. The last row is `drop duplicate rows` with 101088746 rows left.
+5. Save the notebook with Ctrl+S (Cmd+S on a Mac), so the results stay inside the file.
 
-**6. Notebook 2: analysis and plots** (under 1 minute)
+What it creates: `data/parquet/trips_clean`, `data/parquet/weather_clean` and the two row count files in `outputs/cleaning/`.
 
-Open `notebooks/02_analysis.ipynb` and choose *Run > Run All Cells*. It saves four csv files in `outputs/results/` and 12 pictures in `outputs/charts/`. The charts for trips per day are also shown in the notebook.
+**6. Notebook 2: analysis and plots** (under 1 minute). Do this after notebook 1 is finished.
+
+1. Go back to the file list (the folder icon on the left) and double click `02_analysis.ipynb`.
+2. In the top menu choose *Run > Run All Cells*.
+3. Wait until the status at the bottom left says `Idle`.
+4. Check the end of the notebook: it shows the charts for trips per day, and the last line printed is `12/12 outputs/charts/hot_fare_pct.png`.
+5. Save the notebook with Ctrl+S (Cmd+S on a Mac).
+
+What it creates: four csv files in `outputs/results/` and 12 pictures in `outputs/charts/`.
+
+*Run All Cells* runs the cells one after the other, from top to bottom, and stops if a cell fails. If you want to look at every step, click a cell and press Shift+Enter instead, this runs just that cell and moves to the next one.
 
 We ran all the steps from a clean state (no parquet files, no outputs) and everything worked. Times are from our laptops.
+
+## How it works (in short)
+
+Four steps, one after the other. Steps 1 and 2 are python scripts, steps 3 and 4 are jupyter notebooks. The download runs on your computer, the other steps run in docker.
+
+| Step | What it does | Where the result goes |
+|---|---|---|
+| 1. `src/download_data.py` | downloads the data | `data/raw/` |
+| 2. `src/ingest.py` | reads the raw files with a fixed schema and saves them as parquet (a faster format) | `data/parquet/` |
+| 3. `notebooks/01_clean.ipynb` | removes the bad rows | clean tables in `data/parquet/`, row counts in `outputs/cleaning/` |
+| 4. `notebooks/02_analysis.ipynb` | compares every weather type with a normal day and draws charts | tables in `outputs/results/`, charts in `outputs/charts/` |
+
+The two notebooks in this repository already contain the results of our run (tables, row counts and charts), so you can read them here on github without running anything.
+
+## Data
+
+| Dataset | What it is | Size | Licence |
+|---|---|---|---|
+| [NYC yellow taxi trips](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) | one parquet file per month, July 2023 to December 2025 (30 files, about 108.7 million trips) | 1.86 GB for all raw files | NYC Open Data terms of use |
+| [Taxi zone lookup](https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv) | 265 zones with borough and name | 12 KB | NYC Open Data terms of use |
+| [NOAA daily weather, Central Park](https://www.ncei.noaa.gov/data/global-historical-climatology-network-daily/access/USW00094728.csv) | station USW00094728, we use 915 days (2023-07-01 to 2025-12-31) | 17.8 MB | NOAA public data |
+
+Joins: trips and zones on the zone id, trips and weather on the pick up date.
+
+Why Spark: 108 million rows are too much for pandas on a laptop (the data is more than 1.8 GB and expands a lot in memory). Spark reads it in parts and does the joins and group bys for us.
 
 ## What each step does
 
