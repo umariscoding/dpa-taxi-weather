@@ -12,7 +12,7 @@ Part 2 (streaming) and part 3 (graph) will use the same data later.
 
 ## How it works (in short)
 
-Four steps, one after the other. Steps 1 and 2 are python scripts, steps 3 and 4 are jupyter notebooks. Everything runs in docker.
+Four steps, one after the other. Steps 1 and 2 are python scripts, steps 3 and 4 are jupyter notebooks. The download runs on your computer, the other steps run in docker.
 
 | Step | What it does | Where the result goes |
 |---|---|---|
@@ -20,6 +20,8 @@ Four steps, one after the other. Steps 1 and 2 are python scripts, steps 3 and 4
 | 2. `src/ingest.py` | reads the raw files with a fixed schema and saves them as parquet (a faster format) | `data/parquet/` |
 | 3. `notebooks/01_clean.ipynb` | removes the bad rows | clean tables in `data/parquet/`, row counts in `outputs/cleaning/` |
 | 4. `notebooks/02_analysis.ipynb` | compares every weather type with a normal day and draws charts | tables in `outputs/results/`, charts in `outputs/charts/` |
+
+The two notebooks in this repository already contain the results of our run (tables, row counts and charts), so you can read them here on github without running anything.
 
 ## Data
 
